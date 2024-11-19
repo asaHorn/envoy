@@ -3,6 +3,8 @@
 #include <string>
 #include <json/json.h>
 
+bool debug = True;
+
 enum State { //The current state of the agent
     INIT,                           //starting state, attempt to contact network
     WAIT_FOR_PEERS,                 //wait for configuration information
@@ -19,14 +21,16 @@ protected:
     State state;                    //which state of the state machine is the network in
     virtual void doStep();          //do the actual work for each state.
     static list peers;              //list of active peer nodes (shared between networks)
+    static Settings settings        //object which stores settings for both networks
 
 public:
     int stateCounter;               //how many steps we have been in the current state
     int stepTime;                   //time between network transactions.
 
-    virutal void changeState() {    //update universal variables on state change
+    virutal void changeState(string reason="") {    //update universal variables on state change
         stateCounter = 0;
         state = newState;
+        //debug: print state change + reason
     }
     virtual State getState()        //
     { return state; }
@@ -43,7 +47,27 @@ protected:
     string doLDAPQuery(string query){
         //error handling
         //error: can't connect to DC -> move to sleep
+        //error: credentials -> move to dormant
         //error: attribute not found -> init
+    }
+
+    string doCMD(){
+        //poll the $computer.CMD attribute in LDAP
+        //check the step number in the JSON against a cache of the last 10 executed steps; skip if present
+        //for every cmd in the JSON,
+        //check if the command begins with 'envoy:' if yes, pass to the envoy command interpreter
+        //spawn a thread and execute an OS command
+        //as the results come back write them to $computer.result, accounting for race conditions
+        //when finished, delete the entry for this step
+    }
+
+    string OS_CMD(String CMD){
+        //spawn an admin shell in a separate thread with the command
+        //when it finishes return the result
+    }
+
+    string doEnvoyCMD(String CMD){
+        //big switch statement to handle all the agent commands
     }
 
     void doStep() {
@@ -77,6 +101,7 @@ protected:
                 changeState(ACTIVE); // go back to normal load
             case DORMANT:
                 // check if LDAP is configured. If it is move to INIT
+                // every 10 checks move to INIT
             case SLEEP:
                 // check if DC is pingable. If it is move to INIT
                 // every 10 checks go to INIT anyways
@@ -112,7 +137,7 @@ protected:
             case SLEEP:
                 //check for network connectivitiy (ping www.msftconnecttest.com)
                 //if avalaible move to dormant
-                // every 10 checks go to INIT anyways
+                // every 10 checks go to INIT anyway
         }
     }
 public:
@@ -136,6 +161,7 @@ int main() {
         mesh.step()
         envoy.step()
 
+        //sleep until the next step
         sleep(mesh.networkStep - time() + startTime);
     }
 
