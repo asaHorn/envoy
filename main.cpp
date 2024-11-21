@@ -1,5 +1,3 @@
-
-
 bool debug = true;
 
 enum State { //The current state of the agent
@@ -41,11 +39,46 @@ public:
 
 class MeshNet : networkObject{
 protected:
-    string doLDAPQuery(string query){
+    LDAP *ld = nullptr;             // Persistent LDAP connection
+    std::string ldapBaseDN;         // Change to your domain base DN
+    std::string ldapPort;         // Change to your domain base DN
+
+    void initializeLDAPConnection() {
+        if (ld) {ldap_unbind_ext(ld, nullptr, nullptr); ld= nullptr}; // kill any existing connections
+
+        // Initialize LDAP connection
+        ld = ldap_init(ldapBaseDN, ldapPort);
+        if (!ld) {
+            throw std::runtime_error("Failed to initialize LDAP connection");
+        }
+
+        // Use GSSAPI (Kerberos) for authentication
+        int version = LDAP_VERSION3;
+        ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
+
+        int bindRes = ldap_sasl_bind_s(ld, nullptr, "GSSAPI", nullptr, nullptr, nullptr, nullptr);
+        if (bindRes != LDAP_SUCCESS) {
+            ldap_unbind_ext(ld, nullptr, nullptr);
+            ld = nullptr;
+            throw std::runtime_error("LDAP bind failed: " + std::string(ldap_err2string(bindRes)));
+        }
+
+        if (debug) std::cout << "LDAP connection withinitialized successfully" << std::endl;
+    }
+
+    string readLDAPAttribute(string attribute, string targetDN=me){
         //error handling
         //error: can't connect to DC -> move to sleep
         //error: credentials -> move to dormant
         //error: attribute not found -> init
+    }
+
+    void handleLDAPError(runtime_error &e){
+        if (debug) std::cerr << "LDAP query error: " << e.what() << std::endl;
+
+        if (strstr(e.what(), "connection")) changeState(SLEEP, "Could not connect to LDAP server");
+        else if (strstr(e.what(), "bind")) changeState(DORMANT, "Could not bind to LDAP server");
+        else changeState(DORMANT, "An unknown error occurred");
     }
 
     string doCMD(){
@@ -70,6 +103,14 @@ protected:
     void doStep() {
         switch (state) {
             case INIT:
+                // Create LDAP connection
+                try {
+                    initializeLDAPConnection();
+                } catch (const std::runtime_error &e){
+                    handleLDAPError(e);
+                    return;
+                }
+
                 // set own LDAP active flag
                 // query LDAP for other active users
                 // if other users found, send envoy:join
@@ -106,9 +147,17 @@ protected:
     }
 
 public:
-    string me;                      // Stores the name of the current machine
+    string me;                      // Stores the DN of the current machine
     string domain;                  // Stores the Domain name
     int intensiveCount;             // How obtain should intensive steps be run
+
+    ~MeshNet() {
+        if (ld) ldap_unbind_ext(ld, nullptr, nullptr); // Clean up on destruction
+    }
+
+    MeshNet() {
+        state = INIT;
+    }
 };
 
 class Envoy : networkObject{
